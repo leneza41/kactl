@@ -8,23 +8,25 @@
  */
 #pragma once
 
-// Arithmetic mod 2^64-1. 2x slower than mod 2^64 and more
-// code, but works on evil test data (e.g. Thue-Morse, where
-// ABBA... and BAAB... of length 2^10 hash the same mod 2^64).
-// "typedef ull H;" instead if you think test data is random,
-// or work mod 10^9+7 if the Birthday paradox is not a problem.
 typedef uint64_t ull;
+static const ull MOD = (1ULL << 61) - 1, C = 1e11 + 3;
 struct H {
-	ull x; H(ull x=0) : x(x) {}
-	H operator+(H o) { return x + o.x + (x + o.x < x); }
-	H operator-(H o) { return *this + ~o.x; }
-	H operator*(H o) { auto m = (__uint128_t)x * o.x;
-		return H((ull)m) + (ull)(m >> 64); }
-	ull get() const { return x + !~x; }
-	bool operator==(H o) const { return get() == o.get(); }
-	bool operator<(H o) const { return get() < o.get(); }
+	ull x;
+	H(ull x=0) : x((x >> 61) + (x & MOD)) {
+		if (this->x >= MOD) this->x -= MOD; }
+	H operator+(H o) const {
+		ull v = x + o.x; return {v >= MOD ? v - MOD : v}; }
+	H operator-(H o) const {
+		return {x >= o.x ? x - o.x : x + MOD - o.x}; }
+	H operator*(H o) const {
+		__uint128_t m = (__uint128_t)x * o.x;
+		ull v = (ull)(m >> 61) + (ull)(m & MOD);
+		return {v >= MOD ? v - MOD : v};
+	}
+	ull get() const { return x; }
+	bool operator==(H o) const { return x == o.x; }
+	bool operator<(H o) const { return x < o.x; }
 };
-static const H C = (ll)1e11+3; // (order ~ 3e9; random also ok)
 
 struct HashInterval {
 	vector<H> ha, pw;
