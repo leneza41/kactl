@@ -7,6 +7,38 @@
 import sys
 import getopt
 import subprocess
+import os
+import hashlib
+import re
+import shutil
+
+def get_hash(source):
+    cpp_cmd = shutil.which('cpp')
+    if not cpp_cmd and sys.platform == 'win32':
+        for candidate in [r'C:\ProgramData\mingw64\mingw64\bin\cpp.exe', r'C:\MinGW\bin\cpp.exe']:
+            if os.path.exists(candidate):
+                cpp_cmd = candidate
+                break
+    if cpp_cmd:
+        try:
+            p = subprocess.Popen([cpp_cmd, '-dD', '-P', '-fpreprocessed'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+            out, _ = p.communicate(source)
+            if p.returncode == 0:
+                clean = re.sub(r'\s+', '', out)
+                return hashlib.md5(clean.encode('utf-8')).hexdigest()[:6]
+        except Exception:
+            pass
+
+    try:
+        p = subprocess.Popen(['sh', 'content/contest/hash.sh'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+        hsh, _ = p.communicate(source)
+        tokens = hsh.strip().split()
+        if tokens:
+            return tokens[0]
+    except Exception:
+        pass
+
+    return ''
 
 
 def escape(input):
@@ -146,11 +178,8 @@ def processwithcomments(caption, instream, outstream, listingslang):
     nsource = nsource.strip()
 
     if listingslang in ['C++', 'Java']:
-        hash_script = 'hash'
-        p = subprocess.Popen(['sh', 'content/contest/%s.sh' % hash_script], stdin=subprocess.PIPE, stdout=subprocess.PIPE, encoding="utf-8")
-        hsh, _ = p.communicate(nsource)
-        hsh = hsh.split(None, 1)[0]
-        hsh = hsh + ', '
+        h = get_hash(nsource)
+        hsh = (h + ', ') if h else ''
     else:
         hsh = ''
     # Produce output
